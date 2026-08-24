@@ -53,13 +53,8 @@ git clone https://github.com/wasim-2022518497-ops/double-slit-simulation-Bengali
 # Navigate to the folder
 cd double-slit-simulation-Bengali-
 
-# Open in browser (or use any local server)
-open index.html        # macOS
-xdg-open index.html    # Linux
-start index.html       # Windows
-বা Python দিয়ে একটি স্থানীয় সার্ভার চালাতে পারেন:
-python -m http.server 8000
-# Then visit: http://localhost:8000
+
+
 ________________________________________
 📱 সাপোর্টেড ডিভাইস / Supported Devices
 •	✅ ডেস্কটপ (Chrome, Firefox, Safari, Edge)
