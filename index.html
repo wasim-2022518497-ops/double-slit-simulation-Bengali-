@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>দ্বি-চিড় পরীক্ষা — ইন্টারেক্টিভ সিমুলেশন</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0a12;
+    color: #e8e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  h1 {
+    font-size: clamp(18px, 4vw, 24px);
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #f0f0f8;
+  }
+  .subtitle {
+    font-size: clamp(12px, 3vw, 14px);
+    color: #8888a0;
+    margin-bottom: 14px;
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .tab {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #2a2a3a;
+    background: #151520;
+    color: #8888a0;
+    font-size: clamp(11px, 2.5vw, 13px);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .tab:hover { background: #1e1e2e; }
+  .tab.active {
+    background: #e8e8f0;
+    color: #0a0a12;
+    border-color: #e8e8f0;
+  }
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #2a2a3a;
+    overflow: hidden;
+    background: #020208;
+  }
+  #simCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    touch-action: none;
+  }
+  #screenCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: 1px solid #2a2a3a;
+    background: #020208;
+    touch-action: none;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: 1px solid #2a2a3a;
+    background: #1a1a28;
+    color: #e8e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    min-width: 80px;
+    text-align: center;
+  }
+  .btn:hover { background: #252535; }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: #e8e8f0; color: #0a0a12; border-color: #e8e8f0; }
+  .stats {
+    display: flex;
+    gap: 14px;
+    margin-top: 12px;
+    font-size: clamp(11px, 2.5vw, 13px);
+    color: #666680;
+    flex-wrap: wrap;
+  }
+  .stats span { color: #c8c8e0; font-weight: 500; }
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: clamp(10px, 2.2vw, 12px);
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .info {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #2a2a3a;
+    background: #12121e;
+    font-size: clamp(12px, 2.8vw, 13px);
+    line-height: 1.7;
+    color: #a0a0b8;
+  }
+  .info strong { color: #e8e8f0; }
+  .formula {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #1e1e2e;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 11px;
+    margin: 0 2px;
+    color: #c8c8e0;
+  }
+  @media (max-width: 600px) {
+    .container { padding: 10px; }
+    .tab { padding: 7px 10px; font-size: 11px; }
+    .btn { padding: 8px 14px; font-size: 13px; }
+    .stats { gap: 10px; }
+    .legend { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>দ্বি-চিড় পরীক্ষা — ইন্টারেক্টিভ সিমুলেশন</h1>
+  <div class="subtitle">ফ্রাউনহোফার বিবর্তন ও ব্যতিচারের পরীক্ষাগত মডেল</div>
+
+  <div class="tabs">
+    <button class="tab active" data-setup="1">সেটআপ ১: নিয়ন্ত্রণ</button>
+    <button class="tab" data-setup="2">সেটআপ ২: একটি চিড়ে ডিটেক্টর</button>
+    <button class="tab" data-setup="3">সেটআপ ৩: উভয় চিড়ে ডিটেক্টর</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="simCanvas" width="920" height="340"></canvas>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="btnStart">চালু করুন</button>
+    <button class="btn" id="btnPause">বিরতি</button>
+    <button class="btn" id="btnReset">রিসেট</button>
+  </div>
+
+  <div class="stats">
+    <div>তরঙ্গদৈর্ঘ্য (λ): <span>500 nm</span></div>
+    <div>চিড়ের প্রস্থ (a): <span>0.08 mm</span></div>
+    <div>চিড়ের ব্যবধান (d): <span>0.40 mm</span></div>
+    <div>চিড় থেকে পর্দা (L): <span>1.0 m</span></div>
+    <div>আঘাত: <span id="statCount">0</span></div>
+  </div>
+
+  <canvas id="screenCanvas" width="920" height="180"></canvas>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#4fc3f7;"></div> সুপারপজিশন তরঙ্গ</div>
+    <div class="legend-item"><div class="dot" style="background:#ffca28;"></div> পরীক্ষাগত আঘাত</div>
+    <div class="legend-item"><div class="dot" style="background:#ef5350;"></div> ডিটেক্টর</div>
+    <div class="legend-item"><div class="dot" style="background:#ab47bc;"></div> ডিকোহের্ড তরঙ্গ</div>
+    <div class="legend-item"><div class="dot" style="background:rgba(255,255,255,0.5);"></div> তাত্ত্বিক বক্ররেখা</div>
+  </div>
+
+  <div class="info" id="infoText">
+    <strong>সেটআপ ১ — নিয়ন্ত্রণ:</strong> উভয় চিড় খোলা, কোনো ডিটেক্টর নেই। তরঙ্গ ফাংশনের সুপারপজিশনে ব্যতিচার ঘটে। পর্দায় তীব্রতা <span class="formula">I(θ) = I₀ (sin β/β)² cos² γ</span> অনুযায়ী বহু-ব্যান্ড ফ্রিঞ্জ তৈরি হয়, যেখানে <span class="formula">β = (πa/λ) sin θ</span> এবং <span class="formula">γ = (πd/λ) sin θ</span>। কেন্দ্রীয় ব্যান্ড সবচেয়ে উজ্জ্বল এবং পার্শ্ব ব্যান্ডগুলো ক্রমশ ক্ষীণ হয়।
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+  const screenCanvas = document.getElementById('screenCanvas');
+  const sctx = screenCanvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const sW = screenCanvas.width, sH = screenCanvas.height;
+
+  // Geometry
+  const sourceX = 55, sourceY = H/2;
+  const slitX = 240;
+  const screenX = 830;
+  const slitY1 = H/2 - 46;
+  const slitY2 = H/2 + 46;
+  const slitW = 10, slitH = 22;
+  const L = screenX - slitX;
+  const lambda = 18;
+  const k = 2 * Math.PI / lambda;
+  const omega = 0.09;
+
+  // Fraunhofer parameters
+  const a_ratio = 4.5;
+  const d_ratio = 32;
+
+  let setup = 1;
+  let running = false;
+  let time = 0;
+  let wavePhase = 0;
+  let screenHits = [];
+  let totalHits = 0;
+  let wavefronts = [];
+  let decoherencePhase1 = 0;
+  let decoherencePhase2 = 0;
+  let animId = null;
+
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      setup = parseInt(tab.dataset.setup);
+      resetSim();
+      updateInfo();
+    });
+  });
+
+  function updateInfo() {
+    const info = document.getElementById('infoText');
+    if (setup === 1) {
+      info.innerHTML = `<strong>সেটআপ ১ — নিয়ন্ত্রণ (Control):</strong> উভয় চিড় খোলা, কোনো ডিটেক্টর নেই। তরঙ্গ ফাংশনের <em>সুপারপজিশন</em> এ ব্যতিচার (interference) ঘটে। পর্দায় তীব্রতা <span class="formula">I(θ) = I₀ (sin β/β)² cos² γ</span> অনুযায়ী বহু-ব্যান্ড ফ্রিঞ্জ তৈরি হয়। কেন্দ্রীয় ব্যান্ড সবচেয়ে উজ্জ্বল, পার্শ্ব ব্যান্ডগুলো ক্রমশ ক্ষীণ হয় এবং একক-চিড় বিবর্তনের (single-slit diffraction) আবরণ দ্বারা নিয়ন্ত্রিত হয়।`;
+    } else if (setup === 2) {
+      info.innerHTML = `<strong>সেটআপ ২ — একটি চিড়ে ডিটেক্টর (Which-Way):</strong> উভয় চিড় খোলা, কিন্তু চিড়-এ তে একটি ডিটেক্টর বসানো আছে যা কণার পথ নির্ণয় করতে পারে। কণা ডিটেক্টরের সাথে <em>জড়িয়ে (entangles)</em> যায় এবং তরঙ্গ ফাংশন <em>ডিকোহের (decoheres)</em> হয়। সুপারপজিশন ভেঙে যায় এবং পর্দায় <span class="formula">I = |ψₐ|² + |ψᵦ|²</span> অনুযায়ী কেবল একক-চিড় বিবর্তনের প্রশস্ত কেন্দ্রীয় ব্যান্ড দেখা যায় — কোনো ফ্রিঞ্জ নেই।`;
+    } else {
+      info.innerHTML = `<strong>সেটআপ ৩ — উভয় চিড়ে ডিটেক্টর (Full Decoherence):</strong> উভয় চিড়েই ডিটেক্টর বসানো। প্রতিটি কণার পথ নিশ্চিতভাবে পরিমাপ হয়। তরঙ্গ ফাংশন সম্পূর্ণভাবে কোলাপ্স করে। পর্দায় <span class="formula">I = |ψₐ|² + |ψᵦ|²</span> অনুযায়ী কেবল বিবর্তন আবরণ থাকে — কোনো ব্যতিচার ফ্রিঞ্জ নেই। দুটি চিড়ের অবদানের <em>অসমন্বিত যোগফল (incoherent sum)</em> একটি মসৃণ, প্রশস্ত কেন্দ্রীয় ব্যান্ড তৈরি করে।`;
+    }
+  }
+
+  function intensity(y_norm) {
+    const beta = a_ratio * y_norm;
+    const gamma = d_ratio * y_norm;
+    const sinc_val = Math.abs(beta) < 1e-6 ? 1 : Math.sin(beta) / beta;
+    const diffraction = sinc_val * sinc_val;
+    if (setup === 1) {
+      const interference = Math.cos(gamma);
+      return diffraction * interference * interference;
+    } else {
+      return diffraction;
+    }
+  }
+
+  function spawnWavefronts() {
+    if (time % Math.floor(lambda / 1.1) === 0) {
+      wavefronts.push({x: sourceX, y: sourceY, r: 0, born: time, fromSource: true, slit: 0});
+    }
+    const distToSlits = Math.abs(slitX - sourceX);
+    for (let wf of wavefronts) {
+      if (wf.fromSource && !wf.hasEmitted && wf.r >= distToSlits - 8 && wf.r <= distToSlits + 12) {
+        wf.hasEmitted = true;
+        if (setup === 1) {
+          wavefronts.push({x: slitX, y: slitY1, r: 0, born: time, fromSource: false, slit: 1, decohered: false});
+          wavefronts.push({x: slitX, y: slitY2, r: 0, born: time, fromSource: false, slit: 2, decohered: false});
+        } else if (setup === 2) {
+          wavefronts.push({x: slitX, y: slitY1, r: 0, born: time, fromSource: false, slit: 1, decohered: true});
+          wavefronts.push({x: slitX, y: slitY2, r: 0, born: time, fromSource: false, slit: 2, decohered: false});
+        } else {
+          wavefronts.push({x: slitX, y: slitY1, r: 0, born: time, fromSource: false, slit: 1, decohered: true});
+          wavefronts.push({x: slitX, y: slitY2, r: 0, born: time, fromSource: false, slit: 2, decohered: true});
+        }
+      }
+    }
+  }
+
+  function updateWavefronts() {
+    for (let wf of wavefronts) wf.r += 1.5;
+    wavefronts = wavefronts.filter(wf => wf.r < Math.max(W, H) + 60 && wf.x + wf.r < screenX + 30);
+    if (setup >= 2) decoherencePhase1 = Math.random() * Math.PI * 2;
+    if (setup === 3) decoherencePhase2 = Math.random() * Math.PI * 2;
+  }
+
+  function addScreenHit() {
+    const probs = [];
+    let maxP = 0;
+    for (let i = 0; i < sW; i++) {
+      const y_norm = (i / sW) * 2 - 1;
+      const p = intensity(y_norm);
+      probs.push(p);
+      if (p > maxP) maxP = p;
+    }
+    let hitX;
+    for (let attempt = 0; attempt < 1200; attempt++) {
+      const idx = Math.floor(Math.random() * sW);
+      if (Math.random() < probs[idx] / maxP) {
+        hitX = idx;
+        break;
+      }
+    }
+    if (hitX === undefined) {
+      hitX = Math.floor(sW/2 + (Math.random()-0.5) * sW * 0.3);
+    }
+    const spread = setup === 1 ? 1.5 : 2.5;
+    screenHits.push({
+      x: hitX + (Math.random() - 0.5) * 1.2,
+      y: sH/2 + (Math.random() - 0.5) * spread,
+      intensity: 0.4 + Math.random() * 0.6,
+      age: 0
+    });
+    totalHits++;
+  }
+
+  function drawWaveField() {
+    const img = ctx.createImageData(W, H);
+    const data = img.data;
+    const step = 2;
+    for (let y = 0; y < H; y += step) {
+      for (let x = 0; x < W; x += step) {
+        let amp = 0;
+        if (x > sourceX && x < screenX) {
+          const rS = Math.sqrt((x - sourceX)**2 + (y - sourceY)**2);
+          if (x < slitX) {
+            amp = Math.sin(k * rS - wavePhase) / (1 + 0.006 * rS);
+          } else {
+            const r1 = Math.sqrt((x - slitX)**2 + (y - slitY1)**2);
+            const r2 = Math.sqrt((x - slitX)**2 + (y - slitY2)**2);
+            const env1 = Math.exp(-0.00025 * (y - slitY1)**2);
+            const env2 = Math.exp(-0.00025 * (y - slitY2)**2);
+            if (setup === 1) {
+              const a1 = env1 * Math.sin(k * r1 - wavePhase) / (1 + 0.010 * r1);
+              const a2 = env2 * Math.sin(k * r2 - wavePhase) / (1 + 0.010 * r2);
+              amp = a1 + a2;
+            } else if (setup === 2) {
+              const a1 = env1 * Math.sin(k * r1 - wavePhase + decoherencePhase1) / (1 + 0.010 * r1);
+              const a2 = env2 * Math.sin(k * r2 - wavePhase) / (1 + 0.010 * r2);
+              amp = Math.sqrt(a1*a1 + a2*a2);
+            } else {
+              const a1 = env1 * Math.sin(k * r1 - wavePhase + decoherencePhase1) / (1 + 0.010 * r1);
+              const a2 = env2 * Math.sin(k * r2 - wavePhase + decoherencePhase2) / (1 + 0.010 * r2);
+              amp = Math.sqrt(a1*a1 + a2*a2);
+            }
+          }
+        }
+        const brightness = Math.min(255, Math.abs(amp) * 60);
+        const idx = (y * W + x) * 4;
+        if (setup === 1) {
+          data[idx] = 12 + brightness * 0.12;
+          data[idx+1] = 30 + brightness * 0.30;
+          data[idx+2] = 50 + brightness * 0.55;
+        } else {
+          data[idx] = 30 + brightness * 0.30;
+          data[idx+1] = 15 + brightness * 0.15;
+          data[idx+2] = 40 + brightness * 0.40;
+        }
+        data[idx+3] = brightness * 0.09;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function drawWavefronts() {
+    for (let wf of wavefronts) {
+      const alpha = Math.max(0.03, 0.50 - wf.r / 500);
+      ctx.lineWidth = 1.2;
+      if (wf.fromSource) {
+        ctx.strokeStyle = `rgba(180,200,255,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(wf.x, wf.y, wf.r, -Math.PI/3, Math.PI/3);
+        ctx.stroke();
+      } else {
+        if (wf.decohered) {
+          ctx.strokeStyle = `rgba(171,71,192,${alpha})`;
+        } else {
+          ctx.strokeStyle = `rgba(79,195,247,${alpha})`;
+        }
+        ctx.beginPath();
+        ctx.arc(wf.x, wf.y, wf.r, -Math.PI/2.1, Math.PI/2.1);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawSetup() {
+    ctx.fillStyle = '#ffca28';
+    ctx.beginPath(); ctx.arc(sourceX, sourceY, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,202,40,0.20)';
+    ctx.beginPath(); ctx.arc(sourceX, sourceY, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#aaa';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('সোর্স', sourceX - 20, sourceY + 26);
+
+    ctx.fillStyle = '#252530';
+    ctx.fillRect(slitX - 6, 0, 12, slitY1 - slitH/2);
+    ctx.fillRect(slitX - 6, slitY1 + slitH/2, 12, slitY2 - slitY1 - slitH);
+    ctx.fillRect(slitX - 6, slitY2 + slitH/2, 12, H - (slitY2 + slitH/2));
+
+    ctx.fillStyle = 'rgba(79,195,247,0.08)';
+    ctx.fillRect(slitX - 6, slitY1 - slitH/2, 12, slitH);
+    ctx.fillRect(slitX - 6, slitY2 - slitH/2, 12, slitH);
+
+    ctx.fillStyle = '#12121a';
+    ctx.fillRect(screenX, 0, 6, H);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(screenX + 6, 0, 2, H);
+
+    if (setup === 2 || setup === 3) {
+      ctx.fillStyle = 'rgba(239,83,80,0.28)';
+      ctx.fillRect(slitX - 24, slitY1 - 24, 48, 48);
+      ctx.strokeStyle = '#ef5350';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(slitX - 24, slitY1 - 24, 48, 48);
+      ctx.fillStyle = '#ef5350';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('D₁', slitX - 6, slitY1 - 28);
+      if (Math.floor(time/10) % 2 === 0) {
+        ctx.fillStyle = 'rgba(239,83,80,0.10)';
+        ctx.beginPath(); ctx.arc(slitX, slitY1, 34, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    if (setup === 3) {
+      ctx.fillStyle = 'rgba(239,83,80,0.28)';
+      ctx.fillRect(slitX - 24, slitY2 - 24, 48, 48);
+      ctx.strokeStyle = '#ef5350';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(slitX - 24, slitY2 - 24, 48, 48);
+      ctx.fillStyle = '#ef5350';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('D₂', slitX - 6, slitY2 + 36);
+      if (Math.floor(time/10) % 2 === 0) {
+        ctx.fillStyle = 'rgba(239,83,80,0.10)';
+        ctx.beginPath(); ctx.arc(slitX, slitY2, 34, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = '#777';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('ব্যারিয়ার', slitX - 30, 16);
+    ctx.fillText('পর্দা', screenX + 12, 16);
+    ctx.fillStyle = '#999';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('চিড়-এ', slitX - 18, slitY1 - 26);
+    ctx.fillText('চিড়-বি', slitX - 18, slitY2 + 34);
+  }
+
+  function drawScreen() {
+    sctx.clearRect(0, 0, sW, sH);
+    const grad = sctx.createLinearGradient(0, 0, 0, sH);
+    grad.addColorStop(0, '#080810');
+    grad.addColorStop(0.5, '#0a0a14');
+    grad.addColorStop(1, '#080810');
+    sctx.fillStyle = grad;
+    sctx.fillRect(0, 0, sW, sH);
+
+    const probs = [];
+    let maxP = 0;
+    for (let i = 0; i < sW; i++) {
+      const y_norm = (i / sW) * 2 - 1;
+      const p = intensity(y_norm);
+      probs.push(p);
+      if (p > maxP) maxP = p;
+    }
+
+    const curveColor = setup === 1 ? 'rgba(79,195,247,0.55)' : 'rgba(171,71,192,0.55)';
+    const fillColor = setup === 1 ? 'rgba(79,195,247,0.07)' : 'rgba(171,71,192,0.07)';
+
+    sctx.strokeStyle = curveColor;
+    sctx.lineWidth = 2.5;
+    sctx.beginPath();
+    for (let i = 0; i < sW; i++) {
+      const h = (probs[i] / maxP) * (sH - 36);
+      const y = sH - 18 - h;
+      if (i === 0) sctx.moveTo(i, y);
+      else sctx.lineTo(i, y);
+    }
+    sctx.stroke();
+
+    sctx.fillStyle = fillColor;
+    sctx.lineTo(sW, sH); sctx.lineTo(0, sH); sctx.closePath(); sctx.fill();
+
+    if (setup === 1) {
+      sctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      sctx.lineWidth = 1.5;
+      sctx.setLineDash([5, 5]);
+      sctx.beginPath();
+      for (let i = 0; i < sW; i++) {
+        const y_norm = (i / sW) * 2 - 1;
+        const beta = a_ratio * y_norm;
+        const sinc_val = Math.abs(beta) < 1e-6 ? 1 : Math.sin(beta) / beta;
+        const diffraction = sinc_val * sinc_val;
+        const h = diffraction * (sH - 36);
+        const yy = sH - 18 - h;
+        if (i === 0) sctx.moveTo(i, yy);
+        else sctx.lineTo(i, yy);
+      }
+      sctx.stroke();
+      sctx.setLineDash([]);
+    }
+
+    if (setup === 1) {
+      sctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      sctx.lineWidth = 1;
+      sctx.setLineDash([2, 4]);
+      sctx.beginPath(); sctx.moveTo(sW/2, 20); sctx.lineTo(sW/2, sH - 10); sctx.stroke();
+      const y1_min = sW/2 - (sW/2) * (Math.PI / a_ratio);
+      const y2_min = sW/2 + (sW/2) * (Math.PI / a_ratio);
+      if (y1_min > 0) { sctx.beginPath(); sctx.moveTo(y1_min, 20); sctx.lineTo(y1_min, sH - 10); sctx.stroke(); }
+      if (y2_min < sW) { sctx.beginPath(); sctx.moveTo(y2_min, 20); sctx.lineTo(y2_min, sH - 10); sctx.stroke(); }
+      sctx.setLineDash([]);
+    }
+
+    for (let h of screenHits) {
+      h.age++;
+      const alpha = Math.max(0.10, 1 - h.age / 500);
+      sctx.fillStyle = `rgba(255,202,40,${alpha * h.intensity})`;
+      sctx.beginPath();
+      sctx.arc(h.x, h.y, 1.2 + h.intensity * 0.8, 0, Math.PI*2);
+      sctx.fill();
+    }
+
+    sctx.fillStyle = '#999';
+    sctx.font = '12px sans-serif';
+    sctx.fillText('পর্দায় তীব্রতার বিন্যাস (Intensity Distribution)', 14, 20);
+    sctx.fillStyle = setup === 1 ? '#4fc3f7' : '#ab47bc';
+    sctx.font = '11px sans-serif';
+    if (setup === 1) {
+      sctx.fillText('ব্যতিচার ফ্রিঞ্জ + বিবর্তন আবরণ', 14, 36);
+      sctx.fillStyle = 'rgba(255,255,255,0.4)';
+      sctx.fillText('—— বিবর্তন আবরণ (diffraction envelope)', 14, 52);
+    } else if (setup === 2) {
+      sctx.fillText('ডিকোহের্ড — কেবল বিবর্তন আবরণ, কোনো ফ্রিঞ্জ নেই', 14, 36);
+    } else {
+      sctx.fillText('সম্পূর্ণ ডিকোহেরেন্স — কোনো ফ্রিঞ্জ নেই', 14, 36);
+    }
+
+    sctx.fillStyle = '#555';
+    sctx.font = '10px sans-serif';
+    sctx.fillText('← -10 mm', 10, sH - 8);
+    sctx.fillText('0', sW/2 - 4, sH - 8);
+    sctx.fillText('+10 mm →', sW - 55, sH - 8);
+  }
+
+  function animate() {
+    if (!running) return;
+    time++;
+    wavePhase += omega;
+    spawnWavefronts();
+    updateWavefronts();
+    ctx.clearRect(0, 0, W, H);
+    drawWaveField();
+    drawWavefronts();
+    drawSetup();
+    if (time % 2 === 0) addScreenHit();
+    drawScreen();
+    document.getElementById('statCount').textContent = totalHits;
+    animId = requestAnimationFrame(animate);
+  }
+
+  function resetSim() {
+    running = false;
+    if (animId) cancelAnimationFrame(animId);
+    wavefronts = [];
+    screenHits = [];
+    totalHits = 0;
+    time = 0;
+    wavePhase = 0;
+    ctx.clearRect(0, 0, W, H);
+    sctx.clearRect(0, 0, sW, sH);
+    drawWaveField();
+    drawSetup();
+    drawScreen();
+    document.getElementById('statCount').textContent = '0';
+  }
+
+  document.getElementById('btnStart').addEventListener('click', () => {
+    if (!running) { running = true; animate(); }
+  });
+  document.getElementById('btnPause').addEventListener('click', () => {
+    running = false;
+    if (animId) cancelAnimationFrame(animId);
+  });
+  document.getElementById('btnReset').addEventListener('click', resetSim);
+
+  // Touch support for mobile
+  document.getElementById('btnStart').addEventListener('touchstart', (e) => { e.preventDefault(); if (!running) { running = true; animate(); } });
+  document.getElementById('btnPause').addEventListener('touchstart', (e) => { e.preventDefault(); running = false; if (animId) cancelAnimationFrame(animId); });
+  document.getElementById('btnReset').addEventListener('touchstart', (e) => { e.preventDefault(); resetSim(); });
+  tabs.forEach(tab => {
+    tab.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      setup = parseInt(tab.dataset.setup);
+      resetSim();
+      updateInfo();
+    });
+  });
+
+  // Init
+  drawWaveField();
+  drawSetup();
+  drawScreen();
+})();
+</script>
+</body>
+</html>
